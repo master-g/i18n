@@ -18,12 +18,34 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package main
+package cmd
 
 import (
-	"github.com/master-g/texturepacker/cmd/texturepacker/cmd"
+	"github.com/master-g/i18n/internal/buildinfo"
+	"github.com/spf13/cobra"
+	jww "github.com/spf13/jwalterweatherman"
 )
 
-func main() {
-	cmd.Execute()
+// versionCmd represents the version command
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Print the version number of this program",
+	Long:  `All software has versions.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		jww.FEEDBACK.Println(buildinfo.VersionString())
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(versionCmd)
+
+	// Here you will define your flags and configuration settings.
+
+	// Cobra supports Persistent Flags which will work for this command
+	// and all subcommands, e.g.:
+	// versionCmd.PersistentFlags().String("foo", "", "A help for foo")
+
+	// Cobra supports local flags which will only run when this command
+	// is called directly, e.g.:
+	// versionCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

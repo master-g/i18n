@@ -2,7 +2,7 @@
 
 fastbuild=off
 buildinfo=off
-target=texturepacker
+target=i18n
 while getopts fbt: opt
 do
     case "$opt" in
@@ -45,7 +45,7 @@ echo "==> Building $target"
 
 if [[ "$buildinfo" != off ]]
 then
-    BUILD_PKG=github.com/master-g/texturepacker/internal/buildinfo
+    BUILD_PKG=github.com/master-g/i18n/internal/buildinfo
     COMMIT_HASH=$(git rev-parse --short HEAD)
     BUILD_DATE=$(date +%Y-%m-%dT%TZ%z)
     echo "==> Commit hash:$COMMIT_HASH Date:$BUILD_DATE"

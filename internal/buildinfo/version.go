@@ -18,22 +18,62 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package packer
+package buildinfo
 
-// Rectangle represents the place taken by a image file
-type Rectangle struct {
-	Left   int
-	Top    int
-	Right  int
-	Bottom int
+import (
+	"fmt"
+	"runtime"
+	"strings"
+)
+
+// CommitHash set by linker with `-X` flag
+var CommitHash string
+
+// BuildDate set by linker with `-X` flag
+var BuildDate string
+
+// Version semantic
+type Version struct {
+	// Major version increment for backwards-incompatible changes.
+	Major int
+	// Minor version increment for new features.
+	Minor int
+	// Patch version increment for bug fixes.
+	Patch int
 }
 
-// Width returns the width of the rectangle
-func (rc Rectangle) Width() int {
-	return rc.Right - rc.Left
+var currentVersion = Version{
+	Major: 0,
+	Minor: 0,
+	Patch: 1,
 }
 
-// Height returns the height of the rectangle
-func (rc Rectangle) Height() int {
-	return rc.Bottom - rc.Top
+// String interface
+func (v Version) String() string {
+	return fmt.Sprintf("%v.%v.%v", v.Major, v.Minor, v.Patch)
+}
+
+// VersionString returns a string represents version and os info
+func VersionString() string {
+	var sb strings.Builder
+	sb.WriteString("v")
+	sb.WriteString(currentVersion.String())
+	if CommitHash != "" {
+		sb.WriteString("-")
+		sb.WriteString(CommitHash)
+	}
+	sb.WriteString(" ")
+
+	if BuildDate != "" {
+		sb.WriteString("(")
+		sb.WriteString(BuildDate)
+		sb.WriteString(")")
+		sb.WriteString(" ")
+	}
+
+	sb.WriteString(runtime.GOOS)
+	sb.WriteString("/")
+	sb.WriteString(runtime.GOARCH)
+
+	return sb.String()
 }

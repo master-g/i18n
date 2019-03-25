@@ -33,8 +33,8 @@ var cfgFile string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "texturepacker",
-	Short: "TexturePacker, pack 2D texture recursively",
+	Use:   "i18n",
+	Short: "i18n, convert csv i18n resource to json",
 	Long:  `A very basic implementation`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
@@ -56,7 +56,7 @@ func init() {
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.texturepacker.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.i18n.yaml)")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
@@ -76,9 +76,9 @@ func initConfig() {
 			os.Exit(1)
 		}
 
-		// Search config in home directory with name ".texturepacker" (without extension).
+		// Search config in home directory with name ".i18n" (without extension).
 		viper.AddConfigPath(home)
-		viper.SetConfigName(".texturepacker")
+		viper.SetConfigName(".i18n")
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match
