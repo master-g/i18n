@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-gox -output="../bin/release/temp/{{.OS}}_{{.Arch}}/{{.Dir}}" ../cmd/texturepacker
+gox -output="../bin/release/temp/{{.OS}}_{{.Arch}}/{{.Dir}}" ../cmd/i18n
 
 for d in ../bin/release/temp/*; do
     for bin in ${d}; do
