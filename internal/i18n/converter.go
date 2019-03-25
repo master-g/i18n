@@ -92,6 +92,7 @@ func (converter *Converter) ReadAppendFile(path string) (err error) {
 
 	// merge strings
 	for lang, key2str := range old.Strings {
+		logrus.Debugf("old entry %v = %v", lang, key2str)
 		converter.Strings[lang] = key2str
 	}
 
@@ -149,7 +150,7 @@ func (converter *Converter) Convert(csvFiles map[string]string) (err error) {
 						}
 						oldEntry, collision := converter.Strings[lang][strKey]
 						if collision && oldEntry != records[i] {
-							logrus.Warnf("lang %v has key %v collision in %v", absPath)
+							logrus.Warnf("lang %v has key %v collision in %v", lang, strKey, absPath)
 						}
 						converter.Strings[lang][strKey] = records[i]
 					}
