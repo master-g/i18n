@@ -5,8 +5,26 @@
 *.so
 *.dylib
 
+# Vendor, remove this rule after first release
+vendor
+
 # Test binary, build with `go test -c`
 *.test
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+
+.idea
+
+# Log
+*.log
+
+# VisualStudio Code
+.vscode/
+
+# Intermediate configuration file
+*.osx.toml
+
+# Executable
+bin/
+
