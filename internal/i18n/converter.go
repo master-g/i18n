@@ -134,13 +134,17 @@ func (converter *Converter) Convert(csvFiles map[string]string) (err error) {
 			}
 			if len(index2language) == 0 {
 				for i, lang := range records {
-					if i > 0 {
+					if i > 0 && lang != "" {
 						index2language[i] = lang
 					}
 				}
 			} else {
 				var strKey string
 				for i, str := range records {
+					if str == "" {
+						continue
+					}
+
 					if i == 0 {
 						// key
 						strKey = str
