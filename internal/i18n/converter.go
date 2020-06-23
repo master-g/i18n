@@ -29,7 +29,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/master-g/i18n/buildinfo"
+	"github.com/master-g/i18n/internal/buildinfo"
 	"github.com/sirupsen/logrus"
 )
 

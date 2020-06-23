@@ -23,8 +23,11 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 
 	"github.com/mitchellh/go-homedir"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -51,12 +54,17 @@ func Execute() {
 }
 
 func init() {
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
 	cobra.OnInitialize(initConfig)
 
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.i18n.yaml)")
+	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "verbose output")
+
+	bindPFlag(rootCmd, "verbose")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
@@ -85,6 +93,37 @@ func initConfig() {
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
+		logrus.Debugf("using config file:%v", viper.ConfigFileUsed())
+	}
+
+	if viper.GetBool("verbose") {
+		logrus.SetLevel(logrus.DebugLevel)
+		logrus.SetReportCaller(true)
+		logrus.SetFormatter(&logrus.TextFormatter{
+			CallerPrettyfier: func(frame *runtime.Frame) (function string, file string) {
+				filename := filepath.Base(frame.File)
+				funcname := filepath.Base(frame.Function)
+				return fmt.Sprintf("%s()", funcname), fmt.Sprintf("%s:%d", filename, frame.Line)
+			},
+		})
+		logrus.Debug("debug mode engaged")
+	} else {
+		logrus.SetLevel(logrus.InfoLevel)
+	}
+}
+
+func bindFlag(cmd *cobra.Command, key string) {
+	err := viper.BindPFlag(key, cmd.Flags().Lookup(key))
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+}
+
+func bindPFlag(cmd *cobra.Command, key string) {
+	err := viper.BindPFlag(key, cmd.PersistentFlags().Lookup(key))
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
 }
