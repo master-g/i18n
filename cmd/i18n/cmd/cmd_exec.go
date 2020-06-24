@@ -96,7 +96,7 @@ var execCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		var filtededPath []string
+		var filteredPath []string
 		for _, f := range folders {
 			f = filepath.Clean(f)
 			if strings.HasSuffix(f, "res") &&
@@ -104,14 +104,14 @@ var execCmd = &cobra.Command{
 				wkfs.IsFile(filepath.Join(f, "values", "strings.xml")) &&
 				wkfs.IsFile(filepath.Join(filepath.Dir(f), "AndroidManifest.xml")) {
 
-				filtededPath = append(filtededPath, f)
-				logrus.Info(f)
+				filteredPath = append(filteredPath, f)
 			}
 		}
 
+		outputDir = ""
 		interact := viper.GetBool("interact")
 		if interact {
-			if len(filtededPath) == 0 {
+			if len(filteredPath) == 0 {
 				force := false
 				prompt := &survey.Confirm{
 					Message: fmt.Sprintf("%v is not an valid output directory, process anyway?"),
@@ -125,24 +125,75 @@ var execCmd = &cobra.Command{
 					logrus.Info("abort")
 					os.Exit(0)
 				}
-			} else if len(filtededPath) > 1 && len(filtededPath) < 42 {
-
+			} else if len(filteredPath) > 1 && len(filteredPath) < 42 {
+				prompt := &survey.Select{
+					Message: fmt.Sprintf("there are %v available output directories", len(filteredPath)),
+					Options: filteredPath,
+				}
+				err = survey.AskOne(prompt, &outputDir)
+				if err != nil {
+					logrus.Error(err)
+					os.Exit(1)
+				}
+			} else if len(filteredPath) == 1 {
+				outputDir = filteredPath[0]
 			} else {
-
+				logrus.Errorf("too many candidate output directories(%v), abort", len(filteredPath))
+				os.Exit(1)
 			}
 		} else {
-			if len(filtededPath) == 0 {
+			if len(filteredPath) == 0 {
 				logrus.Errorf("the output might not be an android resource directory")
 				logrus.Info("you might want to run the command again with --interact option")
 				os.Exit(1)
-			} else if len(filtededPath) > 1 {
+			} else if len(filteredPath) > 1 {
 				logrus.Errorf("there are multiple android resource directories")
-				for _, v := range filtededPath {
+				for _, v := range filteredPath {
 					logrus.Info(v)
 				}
 				logrus.Info("you might want to run the command again with --interact option")
 				os.Exit(1)
+			} else {
+				outputDir = filteredPath[0]
 			}
+		}
+
+		if outputDir == "" {
+			logrus.Error("no available output directory, abort")
+			os.Exit(1)
+		}
+
+		var valueFolders []string
+		_, valueFolders, err = wkfs.Scan(outputDir, wkfs.WithFoldersOnly(), wkfs.WithPatterns("values"))
+		if err != nil {
+			logrus.Errorf("cannot walk through output directory %v, err:%v", outputDir, err)
+			os.Exit(1)
+		}
+
+		filteredPath = []string{}
+		for _, f := range valueFolders {
+			if wkfs.IsFile(filepath.Join(f, "strings.xml")) {
+				filteredPath = append(filteredPath, f)
+			}
+		}
+
+		langMap := make(map[string]string)
+		for _, v := range filteredPath {
+			base := filepath.Base(v)
+			if strings.EqualFold(base, "values") {
+				// en
+				langMap["en"] = v
+			} else {
+				i := strings.IndexRune(base, '-')
+				if i < 0 {
+					continue
+				}
+				lang := base[i+1:]
+				langMap[lang] = v
+			}
+		}
+		for k, v := range langMap {
+			logrus.Infof("%v -> %v", k, v)
 		}
 	},
 }

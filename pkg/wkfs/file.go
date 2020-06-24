@@ -18,5 +18,5 @@ func IsFile(path string) bool {
 		return false
 	}
 
-	return info.Mode().IsRegular()
+	return info.Size() > 0 && info.Mode().IsRegular()
 }
