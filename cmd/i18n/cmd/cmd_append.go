@@ -23,23 +23,26 @@ package cmd
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/master-g/i18n/internal/model"
+	"github.com/master-g/i18n/internal/parser"
 	"github.com/master-g/i18n/pkg/wkfs"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-var execCmd = &cobra.Command{
-	Use:   "exec",
-	Short: "exec i18n, append translate text to android string xml.",
+var appendCmd = &cobra.Command{
+	Use:   "append",
+	Short: "append translate text to android string xml.",
 	PreRun: func(cmd *cobra.Command, args []string) {
-		bindFlag(cmd, "nocheck")
+		bindFlag(cmd, "nolint")
 		bindFlag(cmd, "src")
 		bindFlag(cmd, "interact")
 		bindFlag(cmd, "out")
@@ -51,6 +54,7 @@ var execCmd = &cobra.Command{
 		var err error
 
 		// STEP 1. iterate all source parameters, find all .csv files
+		logrus.Info("checking sources...")
 		sources := viper.GetStringSlice("src")
 		if len(sources) == 0 {
 			logrus.Info("source missing")
@@ -81,11 +85,13 @@ var execCmd = &cobra.Command{
 			sum := md5.Sum([]byte(absPath))
 			srcFiles[hex.EncodeToString(sum[:])] = absPath
 		}
+		logrus.Infof("%d source file(s) found", len(srcFiles))
 
 		// STEP 2. check output directory
+		logrus.Info("checking output directory...")
 		outputDir := viper.GetString("out")
 		if !wkfs.IsDir(outputDir) {
-			logrus.Infof("'%v' is not a valid output directory", outputDir)
+			logrus.Errorf("'%v' is not a valid output directory", outputDir)
 			os.Exit(1)
 		}
 
@@ -177,24 +183,133 @@ var execCmd = &cobra.Command{
 			}
 		}
 
-		langMap := make(map[string]string)
+		lang2stringFolders := make(map[string]string)
 		for _, v := range filteredPath {
 			base := filepath.Base(v)
 			if strings.EqualFold(base, "values") {
 				// en
-				langMap["en"] = v
+				lang2stringFolders["en"] = v
 			} else {
 				i := strings.IndexRune(base, '-')
 				if i < 0 {
 					continue
 				}
 				lang := base[i+1:]
-				langMap[lang] = v
+				lang2stringFolders[lang] = v
 			}
 		}
-		for k, v := range langMap {
+
+		// STEP 3. load all source files
+		logrus.Info("loading source files...")
+		allSources := make(map[string]*model.SourceFile)
+		var collisionResolver parser.CollisionResolver
+
+		if interact {
+			// prepare collision resolver
+			collisionResolver = func(path, key, pre, cur string) string {
+				var answer string
+				prompt := &survey.Select{
+					Message: fmt.Sprintf("key %v collision in source %v", key, path),
+					Options: []string{pre, cur},
+				}
+				err = survey.AskOne(prompt, &answer)
+				if err != nil {
+					logrus.Error(err)
+					os.Exit(1)
+				}
+				return answer
+			}
+		}
+
+		for _, v := range srcFiles {
+			// iterate all source file and load them up
+			source, err := parser.LoadCSV(v, collisionResolver)
+			if err != nil {
+				logrus.Errorf("cannot load source csv file %v, err:%v", v, err)
+				os.Exit(1)
+			}
+			allSources[v] = source
+		}
+
+		if viper.GetBool("nolint") {
+			logrus.Info("flag 'nolint' specified, skip linting...")
+		} else {
+			// lint
+			logrus.Info("linting...")
+			sanitized := true
+			for _, source := range allSources {
+				lintResult := source.Lint(model.WithDefaultLinters())
+				if len(lintResult) != 0 {
+					sanitized = false
+					logrus.Warnf("%v found %d issues", source.AbsPath, len(lintResult))
+					for _, lint := range lintResult {
+						logrus.Warnf("%v", lint.Desc)
+					}
+				}
+			}
+			if !sanitized {
+				logrus.Warn("fix issues before continue, or add '--nolint' flag")
+				return
+			}
+		}
+
+		var mergeResolver model.MergeCollisionResolver
+		if interact {
+			mergeResolver = func(collision *model.Collision) string {
+				type Entry struct {
+					File    string `json:"file"`
+					Content string `json:"content"`
+				}
+				selections := make([]string, 0, len(collision.Values))
+				for i := 0; i < len(collision.Values); i++ {
+					entry := &Entry{
+						File:    collision.Files[i],
+						Content: collision.Values[i],
+					}
+					var raw []byte
+					raw, err = json.Marshal(entry)
+					if err != nil {
+						logrus.Error("cannot marshal collision entry, err: %v", err)
+						os.Exit(1)
+					}
+
+					selections = append(selections, string(raw))
+				}
+
+				var answer string
+				prompt := &survey.Select{
+					Message: fmt.Sprintf("key '%v' has %d collisions", collision.Key, len(collision.Values)),
+					Options: selections,
+				}
+				err = survey.AskOne(prompt, &answer)
+				if err != nil {
+					logrus.Error(err)
+					os.Exit(1)
+				}
+
+				entry := &Entry{}
+				err = json.Unmarshal([]byte(answer), entry)
+				if err != nil {
+					logrus.Error("cannot unmarshal collision entry, err: %v", err)
+					os.Exit(1)
+				}
+
+				return entry.Content
+			}
+		}
+
+		srcModelList := make([]*model.SourceFile, 0, len(allSources))
+		for _, src := range allSources {
+			srcModelList = append(srcModelList, src)
+		}
+		merged := model.Merge(srcModelList, mergeResolver)
+		_ = merged
+
+		// STEP 4. append to target xml files
+		for k, v := range lang2stringFolders {
 			logrus.Infof("%v -> %v", k, v)
 		}
+
 	},
 }
 
@@ -212,10 +327,10 @@ func mightBeXMLFile(p string) bool {
 }
 
 func init() {
-	rootCmd.AddCommand(execCmd)
+	rootCmd.AddCommand(appendCmd)
 
-	execCmd.Flags().BoolP("nocheck", "", false, "ignore common mistakes in translation text (﹪, s%, $n% etc.)")
-	execCmd.Flags().StringSliceP("src", "s", []string{}, "source csv file/directories")
-	execCmd.Flags().BoolP("interact", "", false, "handle collision in an interactive mode")
-	execCmd.Flags().StringP("out", "o", "", "output directory")
+	appendCmd.Flags().BoolP("nolint", "", false, "ignore common mistakes in translation text (﹪, s%, $n% etc.)")
+	appendCmd.Flags().StringSliceP("src", "s", []string{}, "source csv file/directories")
+	appendCmd.Flags().BoolP("interact", "", false, "handle collision in an interactive mode")
+	appendCmd.Flags().StringP("out", "o", "", "output directory")
 }
