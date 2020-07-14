@@ -76,6 +76,21 @@ fmt:
 build: $(TARGETS)
 
 
+## release: Build executable files for macOS, Windows, Linux
+.PHONY: release
+release:
+	@echo "  >  Releasing..."
+	@GOBIN=$(GOBIN) \
+	gox -ldflags \
+	"-X $(GOMODULE)/pkg/version.Version=$(VERSION) \
+	-X $(GOMODULE)/pkg/version.BuildDate=$(DATE) \
+	-X $(GOMODULE)/pkg/version.CommitHash=$(BUILD)" \
+	-osarch="darwin/amd64" \
+	-osarch="windows/amd64" \
+	-osarch="linux/amd64" \
+	-output="release/{{.OS}}_{{.Arch}}/{{.Dir}}" ./cmd/i18n
+
+
 ## clean: Cleaning build cache
 .PHONY: clean
 clean:
