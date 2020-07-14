@@ -62,7 +62,7 @@ func LoadCSV(p string, collisionResolver CollisionResolver) (ret *model.SourceFi
 
 				if i == 0 {
 					// key
-					strKey = str
+					strKey = strings.TrimSpace(str)
 				} else if lang, ok := index2lang[i]; ok {
 					if tmp.Languages[lang] == nil {
 						tmp.Languages[lang] = &model.LanguageKVS{
@@ -70,7 +70,7 @@ func LoadCSV(p string, collisionResolver CollisionResolver) (ret *model.SourceFi
 							KVS:      make(map[string]string),
 						}
 					}
-					newValue := str
+					newValue := strings.TrimSpace(str)
 					oldEntry, collision := tmp.Languages[lang].KVS[strKey]
 					if collision && strings.Compare(oldEntry, newValue) != 0 {
 						if collisionResolver != nil {

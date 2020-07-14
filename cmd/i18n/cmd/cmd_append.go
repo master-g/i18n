@@ -30,6 +30,7 @@ import (
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/master-g/i18n/internal/appender"
 	"github.com/master-g/i18n/internal/model"
 	"github.com/master-g/i18n/internal/parser"
 	"github.com/master-g/i18n/pkg/wkfs"
@@ -43,6 +44,7 @@ var appendCmd = &cobra.Command{
 	Short: "append translate text to android string xml.",
 	PreRun: func(cmd *cobra.Command, args []string) {
 		bindFlag(cmd, "nolint")
+		bindFlag(cmd, "noescape")
 		bindFlag(cmd, "src")
 		bindFlag(cmd, "interact")
 		bindFlag(cmd, "out")
@@ -303,13 +305,50 @@ var appendCmd = &cobra.Command{
 			srcModelList = append(srcModelList, src)
 		}
 		merged := model.Merge(srcModelList, mergeResolver)
-		_ = merged
 
-		// STEP 4. append to target xml files
-		for k, v := range lang2stringFolders {
-			logrus.Infof("%v -> %v", k, v)
+		// unescape
+		if viper.GetBool("noescape") {
+			logrus.Info("flag 'noescape' specified, skip escaping")
+		} else {
+			logrus.Info("escaping...")
+			for _, kvs := range merged {
+				for k, v := range kvs {
+					kvs[k] = model.EscapeString(v)
+				}
+			}
 		}
 
+		// STEP 4. append to target xml files
+		var appendCollisionResolver appender.CollisionResolver
+		if interact {
+			appendCollisionResolver = func(path string, pos int, key, old, newer string) string {
+				var answer string
+				prompt := &survey.Select{
+					Message: fmt.Sprintf("key %v collision detected in file %v, line %d", key, path, pos),
+					Options: []string{old, newer},
+				}
+				err = survey.AskOne(prompt, &answer)
+				if err != nil {
+					logrus.Error(err)
+					os.Exit(1)
+				}
+				return answer
+			}
+		}
+		for lang, kvs := range merged {
+			if xmlFolder, ok := lang2stringFolders[lang]; ok {
+				stringFilePath := filepath.Join(xmlFolder, "strings.xml")
+				logrus.Infof("appending to %v ...", stringFilePath)
+
+				err = appender.AppendToXML(kvs, stringFilePath, appendCollisionResolver)
+				if err != nil {
+					logrus.Errorf("cannot append to %v, err:%v", stringFilePath, err)
+					os.Exit(1)
+				}
+			} else {
+				logrus.Infof("lang %v missing output resource folder, skipped", lang)
+			}
+		}
 	},
 }
 
@@ -330,6 +369,7 @@ func init() {
 	rootCmd.AddCommand(appendCmd)
 
 	appendCmd.Flags().BoolP("nolint", "", false, "ignore common mistakes in translation text (﹪, s%, $n% etc.)")
+	appendCmd.Flags().BoolP("noescape", "", false, "do not escape special characters in translation")
 	appendCmd.Flags().StringSliceP("src", "s", []string{}, "source csv file/directories")
 	appendCmd.Flags().BoolP("interact", "", false, "handle collision in an interactive mode")
 	appendCmd.Flags().StringP("out", "o", "", "output directory")
