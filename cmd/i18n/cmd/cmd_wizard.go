@@ -67,16 +67,22 @@ var wizardCmd = &cobra.Command{
 
 		// interactive
 		interactive := askBoolean("需要在出现文案冲突时进行人工干预吗")
+		var preferOld bool
+		if !interactive {
+			preferOld = askBoolean("在遇到键值冲突时保留 xml 中的旧值吗")
+		}
 		lint := askBoolean("需要检查一些常见的文案问题吗")
 		escape := askBoolean("需要自动转换特殊字符吗")
 		verbose := askBoolean("是否输出额外的日志信息")
 
-		generated := make([]string, 0)
+		generated := []string{"append"}
 
 		generated = append(generated, fmt.Sprintf("--src %v", srcInput))
 		generated = append(generated, fmt.Sprintf("--out %v", output))
 		if interactive {
 			generated = append(generated, "--interact")
+		} else if !preferOld {
+			generated = append(generated, "--prefer-new")
 		}
 		if !lint {
 			generated = append(generated, "--nolint")

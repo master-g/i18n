@@ -43,11 +43,12 @@ var appendCmd = &cobra.Command{
 	Use:   "append",
 	Short: "append translate text to android string xml.",
 	PreRun: func(cmd *cobra.Command, args []string) {
+		bindFlag(cmd, "src")
+		bindFlag(cmd, "out")
 		bindFlag(cmd, "nolint")
 		bindFlag(cmd, "noescape")
-		bindFlag(cmd, "src")
 		bindFlag(cmd, "interact")
-		bindFlag(cmd, "out")
+		bindFlag(cmd, "prefer-new")
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		srcFiles := make(map[string]string)
@@ -88,6 +89,9 @@ var appendCmd = &cobra.Command{
 			srcFiles[hex.EncodeToString(sum[:])] = absPath
 		}
 		logrus.Infof("%d source file(s) found", len(srcFiles))
+		for _, f := range srcFiles {
+			logrus.Info(f)
+		}
 
 		// STEP 2. check output directory
 		logrus.Info("checking output directory...")
@@ -319,6 +323,8 @@ var appendCmd = &cobra.Command{
 		}
 
 		// STEP 4. append to target xml files
+
+		// collision resolve
 		var appendCollisionResolver appender.CollisionResolver
 		if interact {
 			appendCollisionResolver = func(path string, pos int, key, old, newer string) string {
@@ -334,17 +340,48 @@ var appendCmd = &cobra.Command{
 				}
 				return answer
 			}
+		} else {
+			preferNewer := viper.GetBool("prefer-newer")
+			if preferNewer {
+				logrus.Info("collision resolver will accept newer over older")
+			} else {
+				logrus.Info("collision resolver will not change previous value")
+			}
+			appendCollisionResolver = func(file string, pos int, key, old, newer string) string {
+				var result string
+				var oldMark string
+				var newMark string
+				if preferNewer {
+					result = newer
+					oldMark = " "
+					newMark = "*"
+				} else {
+					result = old
+					oldMark = "*"
+					newMark = " "
+				}
+				dir := filepath.Base(filepath.Dir(file))
+				logrus.Infof("'%v' collision in '%v' line '%d'", key, dir, pos)
+				logrus.Debugf("previous %s: %s", oldMark, old)
+				logrus.Debugf("newer    %s: %s", newMark, newer)
+
+				return result
+			}
 		}
+
+		// merge
 		for lang, kvs := range merged {
 			if xmlFolder, ok := lang2stringFolders[lang]; ok {
 				stringFilePath := filepath.Join(xmlFolder, "strings.xml")
 				logrus.Infof("appending to %v ...", stringFilePath)
 
-				err = appender.AppendToXML(kvs, stringFilePath, appendCollisionResolver)
+				var keyCollisions, keyAppended int
+				keyCollisions, keyAppended, err = appender.AppendToXML(kvs, stringFilePath, appendCollisionResolver)
 				if err != nil {
 					logrus.Errorf("cannot append to %v, err:%v", stringFilePath, err)
 					os.Exit(1)
 				}
+				logrus.Infof("%d key collisions, %d key appended", keyCollisions, keyAppended)
 			} else {
 				logrus.Infof("lang %v missing output resource folder, skipped", lang)
 			}
@@ -368,9 +405,10 @@ func mightBeXMLFile(p string) bool {
 func init() {
 	rootCmd.AddCommand(appendCmd)
 
+	appendCmd.Flags().StringSliceP("src", "s", []string{}, "source csv file/directories")
+	appendCmd.Flags().StringP("out", "o", "", "output directory")
 	appendCmd.Flags().BoolP("nolint", "", false, "ignore common mistakes in translation text (﹪, s%, $n% etc.)")
 	appendCmd.Flags().BoolP("noescape", "", false, "do not escape special characters in translation")
-	appendCmd.Flags().StringSliceP("src", "s", []string{}, "source csv file/directories")
 	appendCmd.Flags().BoolP("interact", "", false, "handle collision in an interactive mode")
-	appendCmd.Flags().StringP("out", "o", "", "output directory")
+	appendCmd.Flags().BoolP("prefer-new", "", false, "prefer new value to old value when there are key collisions")
 }

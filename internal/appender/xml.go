@@ -18,7 +18,7 @@ type xmlLine struct {
 
 type CollisionResolver func(file string, pos int, key, old, newer string) string
 
-func AppendToXML(data map[string]string, output string, resolver CollisionResolver) (err error) {
+func AppendToXML(data map[string]string, output string, resolver CollisionResolver) (keyCollisions, keyAppended int, err error) {
 	var lines []string
 	lines, err = wkfs.ReadAllLines(output)
 	if err != nil {
@@ -47,7 +47,11 @@ func AppendToXML(data map[string]string, output string, resolver CollisionResolv
 		newFileLines = append(newFileLines, line)
 	}
 
-	newFileLines = append(newFileLines, "\n")
+	appendFlag := false
+	lastLine := strings.TrimSpace(newFileLines[len(newFileLines)-1])
+	if lastLine == "" {
+		appendFlag = true
+	}
 
 	sortedKeys := make([]string, 0, len(data))
 	for key := range data {
@@ -70,8 +74,11 @@ func AppendToXML(data map[string]string, output string, resolver CollisionResolv
 
 		if oldEntry, ok := oldSet[key]; ok {
 			if value != strings.TrimSpace(oldEntry.Value) {
+				keyCollisions++
 				if resolver != nil {
 					value = resolver(output, oldEntry.Pos, key, oldEntry.Value, value)
+				} else {
+					value = oldEntry.Value
 				}
 				m := &model.StringXMLItem{
 					Name:  key,
@@ -88,16 +95,21 @@ func AppendToXML(data map[string]string, output string, resolver CollisionResolv
 			}
 			continue
 		}
+
+		keyAppended++
+		if !appendFlag {
+			appendFlag = true
+			newFileLines = append(newFileLines, "\n")
+		}
 		newFileLines = append(newFileLines, newLine)
 	}
-
-	newFileLines = append(newFileLines, "</resources>")
 
 	sb := &strings.Builder{}
 	for _, l := range newFileLines {
 		sb.WriteString(l)
 		sb.WriteRune('\n')
 	}
+	sb.WriteString("</resources>")
 
 	err = ioutil.WriteFile(output, []byte(sb.String()), 0644)
 

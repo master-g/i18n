@@ -23,7 +23,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"runtime"
 
 	"github.com/mitchellh/go-homedir"
@@ -98,14 +97,14 @@ func initConfig() {
 
 	if viper.GetBool("verbose") {
 		logrus.SetLevel(logrus.DebugLevel)
-		logrus.SetReportCaller(true)
-		logrus.SetFormatter(&logrus.TextFormatter{
-			CallerPrettyfier: func(frame *runtime.Frame) (function string, file string) {
-				filename := filepath.Base(frame.File)
-				funcname := filepath.Base(frame.Function)
-				return fmt.Sprintf("%s()", funcname), fmt.Sprintf("%s:%d", filename, frame.Line)
-			},
-		})
+		// logrus.SetReportCaller(true)
+		// logrus.SetFormatter(&logrus.TextFormatter{
+		// 	CallerPrettyfier: func(frame *runtime.Frame) (function string, file string) {
+		// 		filename := filepath.Base(frame.File)
+		// 		funcname := filepath.Base(frame.Function)
+		// 		return fmt.Sprintf("%s()", funcname), fmt.Sprintf("%s:%d", filename, frame.Line)
+		// 	},
+		// })
 		logrus.Debug("debug mode engaged")
 	} else {
 		logrus.SetLevel(logrus.InfoLevel)
