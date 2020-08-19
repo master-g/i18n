@@ -107,7 +107,9 @@ func AppendToXML(data map[string]string, output string, resolver CollisionResolv
 	sb := &strings.Builder{}
 	for _, l := range newFileLines {
 		sb.WriteString(l)
-		sb.WriteRune('\n')
+		if l != "\n" {
+			sb.WriteRune('\n')
+		}
 	}
 	sb.WriteString("</resources>")
 
