@@ -2,6 +2,7 @@ package appender
 
 import (
 	"encoding/xml"
+	"fmt"
 	"io/ioutil"
 	"sort"
 	"strings"
@@ -14,6 +15,7 @@ type xmlLine struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
 	Pos   int    `json:"pos"`
+	Lines int    `json:"lines"`
 }
 
 type CollisionResolver func(file string, pos int, key, old, newer string) string
@@ -27,20 +29,61 @@ func AppendToXML(data map[string]string, output string, resolver CollisionResolv
 
 	newFileLines := make([]string, 0, len(lines))
 
+	multiLineStart := 0
+	multiLineEnd := 0
+	multiLine := false
+	buf := &strings.Builder{}
 	oldSet := make(map[string]*xmlLine)
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "<string name=") {
+
+		found := false
+
+		if multiLine {
+			buf.WriteString(trimmed)
+			if strings.HasPrefix(trimmed, "<string name=") {
+				err = fmt.Errorf("invalid xml, line: %d", i)
+				return
+			} else if strings.HasSuffix(trimmed, "</string>") {
+				trimmed = buf.String()
+				buf.Reset()
+				found = true
+				multiLineEnd = i
+			}
+		} else if strings.HasPrefix(trimmed, "<string name=") {
+			if strings.HasSuffix(trimmed, "</string>") {
+				found = true
+			} else {
+				multiLineStart = i
+				multiLine = true
+				buf.WriteString(trimmed)
+			}
+		}
+
+		if found {
 			m := &model.StringXMLItem{}
 			err = xml.Unmarshal([]byte(trimmed), m)
 			if err != nil {
 				return
 			}
+
+			pos := i
+			numOfLines := 1
+			if multiLine {
+				pos = multiLineStart
+				numOfLines = multiLineEnd - multiLineStart + 1
+			}
+
 			oldSet[m.Name] = &xmlLine{
 				Key:   m.Name,
 				Value: m.Value,
-				Pos:   i,
+				Pos:   pos,
+				Lines: numOfLines,
 			}
+
+			multiLine = false
+			multiLineStart = 0
+			multiLineEnd = 0
 		} else if strings.HasPrefix(trimmed, "</resources>") {
 			break
 		}
@@ -92,6 +135,9 @@ func AppendToXML(data map[string]string, output string, resolver CollisionResolv
 					return
 				}
 				newFileLines[oldEntry.Pos] = string(replaceData)
+				if oldEntry.Lines > 1 {
+					newFileLines = append(newFileLines[:oldEntry.Pos+1], newFileLines[oldEntry.Pos+oldEntry.Lines:]...)
+				}
 			}
 			continue
 		}

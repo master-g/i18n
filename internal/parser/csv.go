@@ -3,6 +3,7 @@ package parser
 import (
 	"bufio"
 	"encoding/csv"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -63,6 +64,10 @@ func LoadCSV(p string, collisionResolver CollisionResolver) (ret *model.SourceFi
 				if i == 0 {
 					// key
 					strKey = strings.TrimSpace(str)
+					if strKey == "" {
+						err = errors.New("empty key found in source file")
+						return
+					}
 				} else if lang, ok := index2lang[i]; ok {
 					if tmp.Languages[lang] == nil {
 						tmp.Languages[lang] = &model.LanguageKVS{
