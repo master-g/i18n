@@ -73,25 +73,34 @@ var wizardCmd = &cobra.Command{
 		}
 		lint := askBoolean("需要检查一些常见的文案问题吗")
 		escape := askBoolean("需要自动转换特殊字符吗")
+		placeholder := askBoolean("需要自动转换占位符吗")
 		verbose := askBoolean("是否输出额外的日志信息")
 
 		generated := []string{"append"}
 
 		generated = append(generated, fmt.Sprintf("--src %v", srcInput))
 		generated = append(generated, fmt.Sprintf("--out %v", output))
+
+		appendFlags := func(arr []string, flags string) []string {
+			return append(arr, fmt.Sprintf("--%v", flags))
+		}
+
 		if interactive {
-			generated = append(generated, "--interact")
+			generated = appendFlags(generated, flagsInteract)
 		} else if !preferOld {
-			generated = append(generated, "--prefer-new")
+			generated = appendFlags(generated, flagsPreferNew)
 		}
 		if !lint {
-			generated = append(generated, "--nolint")
+			generated = appendFlags(generated, flagsNoLint)
 		}
 		if !escape {
-			generated = append(generated, "--noescape")
+			generated = appendFlags(generated, flagsNoEscape)
+		}
+		if placeholder {
+			generated = appendFlags(generated, flagsAutoPlaceHolder)
 		}
 		if verbose {
-			generated = append(generated, "--verbose")
+			generated = appendFlags(generated, flagsVerbose)
 		}
 
 		fmt.Println("run following command")

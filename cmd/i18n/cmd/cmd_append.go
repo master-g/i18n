@@ -45,10 +45,11 @@ var appendCmd = &cobra.Command{
 	PreRun: func(cmd *cobra.Command, args []string) {
 		bindFlag(cmd, "src")
 		bindFlag(cmd, "out")
-		bindFlag(cmd, "nolint")
-		bindFlag(cmd, "noescape")
-		bindFlag(cmd, "interact")
-		bindFlag(cmd, "prefer-new")
+		bindFlag(cmd, flagsInteract)
+		bindFlag(cmd, flagsPreferNew)
+		bindFlag(cmd, flagsNoLint)
+		bindFlag(cmd, flagsNoEscape)
+		bindFlag(cmd, flagsAutoPlaceHolder)
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		srcFiles := make(map[string]string)
@@ -120,13 +121,14 @@ var appendCmd = &cobra.Command{
 			}
 		}
 
+		originOutputDir := outputDir
 		outputDir = ""
-		interact := viper.GetBool("interact")
+		interact := viper.GetBool(flagsInteract)
 		if interact {
 			if len(filteredPath) == 0 {
 				force := false
 				prompt := &survey.Confirm{
-					Message: fmt.Sprintf("%v is not an valid output directory, process anyway?"),
+					Message: fmt.Sprintf("%v is not an valid output directory, process anyway?", originOutputDir),
 				}
 				err = survey.AskOne(prompt, &force)
 				if err != nil {
@@ -237,7 +239,7 @@ var appendCmd = &cobra.Command{
 			allSources[v] = source
 		}
 
-		if viper.GetBool("nolint") {
+		if viper.GetBool(flagsNoLint) {
 			logrus.Info("flag 'nolint' specified, skip linting...")
 		} else {
 			// lint
@@ -311,13 +313,23 @@ var appendCmd = &cobra.Command{
 		merged := model.Merge(srcModelList, mergeResolver)
 
 		// unescape
-		if viper.GetBool("noescape") {
+		if viper.GetBool(flagsNoEscape) {
 			logrus.Info("flag 'noescape' specified, skip escaping")
 		} else {
 			logrus.Info("escaping...")
 			for _, kvs := range merged {
 				for k, v := range kvs {
 					kvs[k] = model.EscapeString(v)
+				}
+			}
+		}
+
+		// auto placeholder
+		if viper.GetBool(flagsAutoPlaceHolder) {
+			logrus.Info("processing auto placeholder...")
+			for _, kvs := range merged {
+				for k, v := range kvs {
+					kvs[k] = model.AutoPlaceholder(v)
 				}
 			}
 		}
@@ -341,7 +353,7 @@ var appendCmd = &cobra.Command{
 				return answer
 			}
 		} else {
-			preferNewer := viper.GetBool("prefer-newer")
+			preferNewer := viper.GetBool(flagsPreferNew)
 			if preferNewer {
 				logrus.Info("collision resolver will accept newer over older")
 			} else {
@@ -407,8 +419,9 @@ func init() {
 
 	appendCmd.Flags().StringSliceP("src", "s", []string{}, "source csv file/directories")
 	appendCmd.Flags().StringP("out", "o", "", "output directory")
-	appendCmd.Flags().BoolP("nolint", "", false, "ignore common mistakes in translation text (﹪, s%, $n% etc.)")
-	appendCmd.Flags().BoolP("noescape", "", false, "do not escape special characters in translation")
-	appendCmd.Flags().BoolP("interact", "", false, "handle collision in an interactive mode")
-	appendCmd.Flags().BoolP("prefer-new", "", false, "prefer new value to old value when there are key collisions")
+	appendCmd.Flags().BoolP(flagsInteract, "", false, "handle collision in an interactive mode")
+	appendCmd.Flags().BoolP(flagsPreferNew, "", false, "prefer new value to old value when there are key collisions")
+	appendCmd.Flags().BoolP(flagsNoLint, "", false, "ignore common mistakes in translation text (﹪, s%, $n% etc.)")
+	appendCmd.Flags().BoolP(flagsNoEscape, "", false, "do not escape special characters in translation")
+	appendCmd.Flags().BoolP(flagsAutoPlaceHolder, "", false, "auto check and format placeholder like %s, %AA, %BB")
 }

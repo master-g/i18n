@@ -24,6 +24,7 @@ import (
 	"bufio"
 	"encoding/csv"
 	"encoding/json"
+	"github.com/master-g/i18n/pkg/wkio"
 	"io"
 	"io/ioutil"
 	"os"
@@ -175,7 +176,7 @@ func (converter *Converter) Convert(csvFiles map[string]string) (err error) {
 	if err != nil {
 		return
 	}
-	defer outFile.Close()
+	defer wkio.SafeClose(outFile)
 	_, err = outFile.Write(resultJson)
 
 	return
