@@ -25,6 +25,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"golang.org/x/sys/windows"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -39,6 +41,10 @@ import (
 	"github.com/spf13/viper"
 )
 
+type Message struct {
+	Key, Alias string
+}
+
 var appendCmd = &cobra.Command{
 	Use:   "append",
 	Short: "append translate text to android string xml.",
@@ -50,6 +56,7 @@ var appendCmd = &cobra.Command{
 		bindFlag(cmd, flagsNoLint)
 		bindFlag(cmd, flagsNoEscape)
 		bindFlag(cmd, flagsAutoPlaceHolder)
+		bindFlag(cmd, flagsKeyConfigure)
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		srcFiles := make(map[string]string)
@@ -62,7 +69,7 @@ var appendCmd = &cobra.Command{
 		sources := viper.GetStringSlice("src")
 		if len(sources) == 0 {
 			logrus.Info("source missing")
-			os.Exit(0)
+			//exit(0)
 		}
 
 		var files []string
@@ -99,14 +106,14 @@ var appendCmd = &cobra.Command{
 		outputDir := viper.GetString("out")
 		if !wkfs.IsDir(outputDir) {
 			logrus.Errorf("'%v' is not a valid output directory", outputDir)
-			os.Exit(1)
+			exit(1)
 		}
 
 		var folders []string
 		_, folders, err = wkfs.Scan(outputDir, wkfs.WithFoldersOnly())
 		if err != nil {
 			logrus.Errorf("cannot walk through directory %v, err:%v", outputDir, err)
-			os.Exit(1)
+			exit(1)
 		}
 
 		var filteredPath []string
@@ -133,11 +140,11 @@ var appendCmd = &cobra.Command{
 				err = survey.AskOne(prompt, &force)
 				if err != nil {
 					logrus.Error(err)
-					os.Exit(1)
+					exit(1)
 				}
 				if !force {
 					logrus.Info("abort")
-					os.Exit(0)
+					exit(0)
 				}
 			} else if len(filteredPath) > 1 && len(filteredPath) < 42 {
 				prompt := &survey.Select{
@@ -147,26 +154,26 @@ var appendCmd = &cobra.Command{
 				err = survey.AskOne(prompt, &outputDir)
 				if err != nil {
 					logrus.Error(err)
-					os.Exit(1)
+					exit(1)
 				}
 			} else if len(filteredPath) == 1 {
 				outputDir = filteredPath[0]
 			} else {
 				logrus.Errorf("too many candidate output directories(%v), abort", len(filteredPath))
-				os.Exit(1)
+				exit(1)
 			}
 		} else {
 			if len(filteredPath) == 0 {
 				logrus.Errorf("the output might not be an android resource directory")
 				logrus.Info("you might want to run the command again with --interact option")
-				os.Exit(1)
+				exit(1)
 			} else if len(filteredPath) > 1 {
 				logrus.Errorf("there are multiple android resource directories")
 				for _, v := range filteredPath {
 					logrus.Info(v)
 				}
 				logrus.Info("you might want to run the command again with --interact option")
-				os.Exit(1)
+				exit(1)
 			} else {
 				outputDir = filteredPath[0]
 			}
@@ -174,14 +181,14 @@ var appendCmd = &cobra.Command{
 
 		if outputDir == "" {
 			logrus.Error("no available output directory, abort")
-			os.Exit(1)
+			exit(1)
 		}
 
 		var valueFolders []string
 		_, valueFolders, err = wkfs.Scan(outputDir, wkfs.WithFoldersOnly(), wkfs.WithPatterns("values"))
 		if err != nil {
 			logrus.Errorf("cannot walk through output directory %v, err:%v", outputDir, err)
-			os.Exit(1)
+			exit(1)
 		}
 
 		filteredPath = []string{}
@@ -223,7 +230,7 @@ var appendCmd = &cobra.Command{
 				err = survey.AskOne(prompt, &answer)
 				if err != nil {
 					logrus.Error(err)
-					os.Exit(1)
+					exit(1)
 				}
 				return answer
 			}
@@ -234,7 +241,7 @@ var appendCmd = &cobra.Command{
 			source, err := parser.LoadCSV(v, collisionResolver)
 			if err != nil {
 				logrus.Errorf("cannot load source csv file %v, err:%v", v, err)
-				os.Exit(1)
+				exit(1)
 			}
 			allSources[v] = source
 		}
@@ -278,7 +285,7 @@ var appendCmd = &cobra.Command{
 					raw, err = json.Marshal(entry)
 					if err != nil {
 						logrus.Error("cannot marshal collision entry, err: %v", err)
-						os.Exit(1)
+						exit(1)
 					}
 
 					selections = append(selections, string(raw))
@@ -292,14 +299,14 @@ var appendCmd = &cobra.Command{
 				err = survey.AskOne(prompt, &answer)
 				if err != nil {
 					logrus.Error(err)
-					os.Exit(1)
+					exit(1)
 				}
 
 				entry := &Entry{}
 				err = json.Unmarshal([]byte(answer), entry)
 				if err != nil {
 					logrus.Error("cannot unmarshal collision entry, err: %v", err)
-					os.Exit(1)
+					exit(1)
 				}
 
 				return entry.Content
@@ -334,6 +341,34 @@ var appendCmd = &cobra.Command{
 			}
 		}
 
+		// key-configure
+		key := viper.GetString(flagsKeyConfigure)
+		var messageArray []Message
+		if "" != key {
+			logrus.Info("key-configure path: ", key)
+			if wkfs.IsFile(key) {
+				data, err := os.ReadFile(key)
+				if err != nil {
+					logrus.Info("read file failed")
+					exit(1)
+				}
+
+				fileData := windows.ByteSliceToString(data)
+				dec := json.NewDecoder(strings.NewReader(fileData))
+
+				for {
+					var m Message
+					if err := dec.Decode(&m); err == io.EOF {
+						break
+					} else if err != nil {
+						logrus.Fatal(err)
+						exit(1)
+					}
+					messageArray = append(messageArray, m)
+				}
+			}
+		}
+
 		// STEP 4. append to target xml files
 
 		// collision resolve
@@ -348,7 +383,7 @@ var appendCmd = &cobra.Command{
 				err = survey.AskOne(prompt, &answer)
 				if err != nil {
 					logrus.Error(err)
-					os.Exit(1)
+					exit(1)
 				}
 				return answer
 			}
@@ -383,7 +418,7 @@ var appendCmd = &cobra.Command{
 
 		// merge
 		for lang, kvs := range merged {
-			if xmlFolder, ok := lang2stringFolders[lang]; ok {
+			if xmlFolder, ok := lang2stringFolders[translateLangKey(messageArray, lang)]; ok {
 				stringFilePath := filepath.Join(xmlFolder, "strings.xml")
 				logrus.Infof("appending to %v ...", stringFilePath)
 
@@ -391,7 +426,7 @@ var appendCmd = &cobra.Command{
 				keyCollisions, keyAppended, err = appender.AppendToXML(kvs, stringFilePath, appendCollisionResolver)
 				if err != nil {
 					logrus.Errorf("cannot append to %v, err:%v", stringFilePath, err)
-					os.Exit(1)
+					exit(1)
 				}
 				logrus.Infof("%d key collisions, %d key appended", keyCollisions, keyAppended)
 			} else {
@@ -399,6 +434,22 @@ var appendCmd = &cobra.Command{
 			}
 		}
 	},
+}
+
+func translateLangKey(keyMaps []Message, lang string) string {
+	for _, keys := range keyMaps {
+		for _, v := range strings.Split(keys.Alias, ",") {
+			if lang == v {
+				logrus.Info("translate ", lang, " key alias:", keys.Key)
+				return keys.Key
+			}
+		}
+	}
+	return lang
+}
+
+func exit(num int) {
+	os.Exit(num)
 }
 
 func hasExtension(fp, ext string) bool {
@@ -424,4 +475,5 @@ func init() {
 	appendCmd.Flags().BoolP(flagsNoLint, "", false, "ignore common mistakes in translation text (﹪, s%, $n% etc.)")
 	appendCmd.Flags().BoolP(flagsNoEscape, "", false, "do not escape special characters in translation")
 	appendCmd.Flags().BoolP(flagsAutoPlaceHolder, "", false, "auto check and format placeholder like %s, %AA, %BB")
+	appendCmd.Flags().StringP(flagsKeyConfigure, "c", "", "key map. e.g. {\"Key\": \"en\", \"Alias\": \"English\"}")
 }
