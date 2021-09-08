@@ -7,4 +7,5 @@ const (
 	flagsNoEscape        = "noescape"
 	flagsAutoPlaceHolder = "auto-placeholder"
 	flagsVerbose         = "verbose"
+	flagsKeyConfigure    = "key-configure"
 )
