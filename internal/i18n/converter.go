@@ -24,13 +24,13 @@ import (
 	"bufio"
 	"encoding/csv"
 	"encoding/json"
-	"github.com/master-g/i18n/pkg/wkio"
 	"io"
 	"io/ioutil"
 	"os"
 	"time"
 
 	"github.com/master-g/i18n/internal/buildinfo"
+	"github.com/master-g/i18n/pkg/wkio"
 	"github.com/sirupsen/logrus"
 )
 
