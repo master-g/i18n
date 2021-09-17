@@ -32,9 +32,7 @@ func (s *SourceFile) Lint(linters ...Linter) (result []*LintResult) {
 		for key, str := range kvs.KVS {
 			for _, linter := range linters {
 				lintResultOfSingleLine := linter(lang, key, str)
-				for _, r := range lintResultOfSingleLine {
-					result = append(result, r)
-				}
+				result = append(result, lintResultOfSingleLine...)
 			}
 		}
 	}

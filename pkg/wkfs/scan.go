@@ -92,7 +92,6 @@ func Scan(dir string, opts ...ScanOpt) (files, folders []string, err error) {
 	err = filepath.Walk(dir, func(path string, f os.FileInfo, e error) error {
 		continueFlag := false
 
-		f, e = os.Stat(path)
 		if e != nil {
 			return e
 		}
@@ -116,7 +115,7 @@ func Scan(dir string, opts ...ScanOpt) (files, folders []string, err error) {
 			ok := false
 			ext := filepath.Ext(path)
 			for _, t := range options.types {
-				if strings.Index(ext, t) != -1 {
+				if strings.Contains(ext, t) {
 					ok = true
 					break
 				}

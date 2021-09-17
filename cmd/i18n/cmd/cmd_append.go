@@ -277,7 +277,7 @@ var appendCmd = &cobra.Command{
 					var raw []byte
 					raw, err = json.Marshal(entry)
 					if err != nil {
-						logrus.Error("cannot marshal collision entry, err: %v", err)
+						logrus.Errorf("cannot marshal collision entry, err: %v", err)
 						os.Exit(1)
 					}
 
@@ -298,7 +298,7 @@ var appendCmd = &cobra.Command{
 				entry := &Entry{}
 				err = json.Unmarshal([]byte(answer), entry)
 				if err != nil {
-					logrus.Error("cannot unmarshal collision entry, err: %v", err)
+					logrus.Errorf("cannot unmarshal collision entry, err: %v", err)
 					os.Exit(1)
 				}
 
@@ -403,16 +403,18 @@ var appendCmd = &cobra.Command{
 
 func hasExtension(fp, ext string) bool {
 	b := filepath.Ext(fp)
-	return strings.Index(strings.ToLower(b), strings.ToLower(ext)) >= 0
+	return strings.Contains(strings.ToLower(b), strings.ToLower(ext))
 }
 
 func mightBeCSVFile(p string) bool {
 	return hasExtension(p, "csv")
 }
 
+/*
 func mightBeXMLFile(p string) bool {
 	return hasExtension(p, "xml")
 }
+*/
 
 func init() {
 	rootCmd.AddCommand(appendCmd)

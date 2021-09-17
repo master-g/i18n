@@ -3,7 +3,7 @@
 TARGETS := i18n
 
 #VERSION := $(shell git describe --tags)
-VERSION := 0.0.1
+VERSION := 0.1.0
 BUILD := $(shell git rev-parse --short HEAD)
 DATE := $(shell date +%Y-%m-%dT%TZ%z)
 PROJECT_NAME := $(shell basename "$(PWD)")
@@ -15,7 +15,7 @@ GO_FILES := $(wildcard *.go)
 GO_MODULE := github.com/master-g/i18n
 
 GOLANGCILINT := $(GO_BIN)/golangci-lint
-GOLANGCILINT_VER := v1.27.0
+GOLANGCILINT_VER := v1.42.1
 
 # output
 BIN := $(shell pwd)/bin
