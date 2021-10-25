@@ -94,9 +94,9 @@ release:
 .PHONY: dist
 dist:
 	@echo "  > Distributing..."
-	@tar czf $(BIN)/linux_amd64.tar.gz -C ./release/linux_amd64 .
-	@zip -r $(BIN)/darwin_amd64.zip ./release/darwin_amd64
-	@zip -r $(BIN)/windows_amd64.zip ./release/windows_amd64
+	@tar czf ./release/linux_amd64.tar.gz -C ./release/linux_amd64 .
+	@zip -r ./release/darwin_amd64.zip ./release/darwin_amd64
+	@zip -r ./release/windows_amd64.zip ./release/windows_amd64
 
 
 ## clean: Cleaning build cache
