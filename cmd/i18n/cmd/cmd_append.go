@@ -50,6 +50,10 @@ var appendCmd = &cobra.Command{
 		bindFlag(cmd, flagsNoLint)
 		bindFlag(cmd, flagsNoEscape)
 		bindFlag(cmd, flagsAutoPlaceHolder)
+		bindFlag(cmd, flagsKeyMappingConfig)
+		bindFlag(cmd, flagsKey)
+		bindFlag(cmd, flagsAlias)
+		bindFlag(cmd, flagsDry)
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		srcFiles := make(map[string]string)
@@ -62,7 +66,7 @@ var appendCmd = &cobra.Command{
 		sources := viper.GetStringSlice("src")
 		if len(sources) == 0 {
 			logrus.Info("source missing")
-			os.Exit(0)
+			//exit(0)
 		}
 
 		var files []string
@@ -99,14 +103,14 @@ var appendCmd = &cobra.Command{
 		outputDir := viper.GetString("out")
 		if !wkfs.IsDir(outputDir) {
 			logrus.Errorf("'%v' is not a valid output directory", outputDir)
-			os.Exit(1)
+			exit(1)
 		}
 
 		var folders []string
 		_, folders, err = wkfs.Scan(outputDir, wkfs.WithFoldersOnly())
 		if err != nil {
 			logrus.Errorf("cannot walk through directory %v, err:%v", outputDir, err)
-			os.Exit(1)
+			exit(1)
 		}
 
 		var filteredPath []string
@@ -133,11 +137,11 @@ var appendCmd = &cobra.Command{
 				err = survey.AskOne(prompt, &force)
 				if err != nil {
 					logrus.Error(err)
-					os.Exit(1)
+					exit(1)
 				}
 				if !force {
 					logrus.Info("abort")
-					os.Exit(0)
+					exit(0)
 				}
 			} else if len(filteredPath) > 1 && len(filteredPath) < 42 {
 				prompt := &survey.Select{
@@ -147,26 +151,26 @@ var appendCmd = &cobra.Command{
 				err = survey.AskOne(prompt, &outputDir)
 				if err != nil {
 					logrus.Error(err)
-					os.Exit(1)
+					exit(1)
 				}
 			} else if len(filteredPath) == 1 {
 				outputDir = filteredPath[0]
 			} else {
 				logrus.Errorf("too many candidate output directories(%v), abort", len(filteredPath))
-				os.Exit(1)
+				exit(1)
 			}
 		} else {
 			if len(filteredPath) == 0 {
 				logrus.Errorf("the output might not be an android resource directory")
 				logrus.Info("you might want to run the command again with --interact option")
-				os.Exit(1)
+				exit(1)
 			} else if len(filteredPath) > 1 {
 				logrus.Errorf("there are multiple android resource directories")
 				for _, v := range filteredPath {
 					logrus.Info(v)
 				}
 				logrus.Info("you might want to run the command again with --interact option")
-				os.Exit(1)
+				exit(1)
 			} else {
 				outputDir = filteredPath[0]
 			}
@@ -174,14 +178,14 @@ var appendCmd = &cobra.Command{
 
 		if outputDir == "" {
 			logrus.Error("no available output directory, abort")
-			os.Exit(1)
+			exit(1)
 		}
 
 		var valueFolders []string
 		_, valueFolders, err = wkfs.Scan(outputDir, wkfs.WithFoldersOnly(), wkfs.WithPatterns("values"))
 		if err != nil {
 			logrus.Errorf("cannot walk through output directory %v, err:%v", outputDir, err)
-			os.Exit(1)
+			exit(1)
 		}
 
 		filteredPath = []string{}
@@ -223,7 +227,7 @@ var appendCmd = &cobra.Command{
 				err = survey.AskOne(prompt, &answer)
 				if err != nil {
 					logrus.Error(err)
-					os.Exit(1)
+					exit(1)
 				}
 				return answer
 			}
@@ -234,7 +238,7 @@ var appendCmd = &cobra.Command{
 			source, err := parser.LoadCSV(v, collisionResolver)
 			if err != nil {
 				logrus.Errorf("cannot load source csv file %v, err:%v", v, err)
-				os.Exit(1)
+				exit(1)
 			}
 			allSources[v] = source
 		}
@@ -277,8 +281,8 @@ var appendCmd = &cobra.Command{
 					var raw []byte
 					raw, err = json.Marshal(entry)
 					if err != nil {
-						logrus.Errorf("cannot marshal collision entry, err: %v", err)
-						os.Exit(1)
+						logrus.Error("cannot marshal collision entry, err: %v", err)
+						exit(1)
 					}
 
 					selections = append(selections, string(raw))
@@ -292,14 +296,14 @@ var appendCmd = &cobra.Command{
 				err = survey.AskOne(prompt, &answer)
 				if err != nil {
 					logrus.Error(err)
-					os.Exit(1)
+					exit(1)
 				}
 
 				entry := &Entry{}
 				err = json.Unmarshal([]byte(answer), entry)
 				if err != nil {
-					logrus.Errorf("cannot unmarshal collision entry, err: %v", err)
-					os.Exit(1)
+					logrus.Error("cannot unmarshal collision entry, err: %v", err)
+					exit(1)
 				}
 
 				return entry.Content
@@ -334,6 +338,62 @@ var appendCmd = &cobra.Command{
 			}
 		}
 
+		// key-mapping
+		keyMappingMap := make(map[string]string)
+		{
+			// from cli flags
+			keyMappingKeys := viper.GetStringSlice(flagsKey)
+			keyMappingAlias := viper.GetStringSlice(flagsAlias)
+			mapSize := 0
+			if len(keyMappingKeys) > len(keyMappingAlias) {
+				mapSize = len(keyMappingAlias)
+			} else {
+				mapSize = len(keyMappingKeys)
+			}
+			if mapSize != 0 {
+				for i := 0; i < mapSize; i++ {
+					k := keyMappingKeys[i]
+					v := keyMappingAlias[i]
+					keyMappingMap[k] = v
+				}
+			}
+		}
+		{
+			// from config file
+			type KeyMappingItem struct {
+				Key   string `json:"key"`
+				Alias string `json:"alias"`
+			}
+			type KeyMappingConfig struct {
+				Mapping []*KeyMappingItem `json:"mapping"`
+			}
+			cfgFilePath := viper.GetString(flagsKeyMappingConfig)
+			if wkfs.IsFile(cfgFilePath) {
+				var raw []byte
+				raw, err = os.ReadFile(cfgFilePath)
+				if err != nil {
+					logrus.Errorf("cannot open key mapping configuration file, err:%v", err)
+					exit(1)
+				}
+				mappingCfg := &KeyMappingConfig{}
+				err = json.Unmarshal(raw, mappingCfg)
+				if err != nil {
+					logrus.Errorf("cannot parse key mapping configuration file, err:%v", err)
+					exit(1)
+				}
+				for _, item := range mappingCfg.Mapping {
+					keyMappingMap[item.Key] = item.Alias
+				}
+			}
+		}
+		if len(keyMappingMap) != 0 {
+			for k, v := range keyMappingMap {
+				logrus.Infof("key mapping, key: %v -> value: %v", k, v)
+			}
+		} else {
+			logrus.Info("no key mapping")
+		}
+
 		// STEP 4. append to target xml files
 
 		// collision resolve
@@ -348,7 +408,7 @@ var appendCmd = &cobra.Command{
 				err = survey.AskOne(prompt, &answer)
 				if err != nil {
 					logrus.Error(err)
-					os.Exit(1)
+					exit(1)
 				}
 				return answer
 			}
@@ -381,40 +441,49 @@ var appendCmd = &cobra.Command{
 			}
 		}
 
+		// dry run
+		dry := viper.GetBool(flagsDry)
+
 		// merge
 		for lang, kvs := range merged {
-			if xmlFolder, ok := lang2stringFolders[lang]; ok {
+			outputLang := lang
+			if v, ok := keyMappingMap[lang]; ok {
+				outputLang = v
+			}
+			if xmlFolder, ok := lang2stringFolders[outputLang]; ok {
 				stringFilePath := filepath.Join(xmlFolder, "strings.xml")
 				logrus.Infof("appending to %v ...", stringFilePath)
 
 				var keyCollisions, keyAppended int
-				keyCollisions, keyAppended, err = appender.AppendToXML(kvs, stringFilePath, appendCollisionResolver)
+				keyCollisions, keyAppended, err = appender.AppendToXML(kvs, stringFilePath, appendCollisionResolver, dry)
 				if err != nil {
 					logrus.Errorf("cannot append to %v, err:%v", stringFilePath, err)
-					os.Exit(1)
+					exit(1)
 				}
 				logrus.Infof("%d key collisions, %d key appended", keyCollisions, keyAppended)
 			} else {
-				logrus.Infof("lang %v missing output resource folder, skipped", lang)
+				logrus.Infof("lang %v missing output resource folder, skipped", outputLang)
 			}
 		}
 	},
 }
 
+func exit(num int) {
+	os.Exit(num)
+}
+
 func hasExtension(fp, ext string) bool {
 	b := filepath.Ext(fp)
-	return strings.Contains(strings.ToLower(b), strings.ToLower(ext))
+	return strings.Index(strings.ToLower(b), strings.ToLower(ext)) >= 0
 }
 
 func mightBeCSVFile(p string) bool {
 	return hasExtension(p, "csv")
 }
 
-/*
 func mightBeXMLFile(p string) bool {
 	return hasExtension(p, "xml")
 }
-*/
 
 func init() {
 	rootCmd.AddCommand(appendCmd)
@@ -426,4 +495,8 @@ func init() {
 	appendCmd.Flags().BoolP(flagsNoLint, "", false, "ignore common mistakes in translation text (﹪, s%, $n% etc.)")
 	appendCmd.Flags().BoolP(flagsNoEscape, "", false, "do not escape special characters in translation")
 	appendCmd.Flags().BoolP(flagsAutoPlaceHolder, "", false, "auto check and format placeholder like %s, %AA, %BB")
+	appendCmd.Flags().StringP(flagsKeyMappingConfig, "", "", "key mapping config path")
+	appendCmd.Flags().StringSliceP(flagsKey, "k", []string{}, "key mapping sources, e.g. \"English\", \"Arabic\"")
+	appendCmd.Flags().StringSliceP(flagsAlias, "a", []string{}, "key mapping alias, e.g. \"en\", \"ar\"")
+	appendCmd.Flags().BoolP(flagsDry, "", false, "dry run, just check logic, WILL NOT write to files")
 }

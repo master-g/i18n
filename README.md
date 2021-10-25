@@ -54,6 +54,48 @@ available flags are:
 * `--noescape` DO NOT convert [special characters](https://developer.android.com/guide/topics/resources/string-resource#FormattingAndStyling) in text
 * `--prefer-new` when `--interact` is not specified, use new value (in `csv`) if there are any conflicts in text (existed `xml`)
 * `--auto-placehoder` automatically convert from `%AA`, `%BB` to `%1$s`, `%2$s` (`%` must be half width, `AA`, `BB` must be uppercase, only supports output `%n$s` format)
+* `--key-mapping-config` language key mapping config file, will convert language key in `csv`
+* `--key` language key
+* `--alias` language key mapping value
+* `--dry` run the command in dry mode, will not modify any files
+
+**about language key mapping**
+
+to save time, you can specify language key mapping now
+
+for example, a `csv` source file:
+
+|keys|英语|繁体中文|西语|
+|:---|:---|:---|:---|
+|string_my_gift|My Gift|我的禮物|mi regalo|
+|string_income_record|Income Record|收入記錄|registro de ingresos|
+
+you can specify a language key mapping configuration file to let `i18n` do the key convention for you
+
+```json
+{
+  "mapping": [
+    {
+      "key": "英语",
+      "alias": "en"
+    }, {
+      "key": "繁体中文",
+      "alias": "zh-rTW"
+    }, {
+      "key": "西语",
+      "alias": "es"
+    }
+  ]
+}
+```
+
+and run the command like:
+
+`i18n --src path-to-csv --out path-to-android-res --key-mapping-config path-to-config-file`
+
+or you can specify the key mapping in arguments via `--key` and `--alias`
+
+`i18n --src path-to-csv --out path-to-android-res --key "英语" --alias "en" --key "繁体中文" --alias "zh-rTW" --key "西语" --alias "es"`
 
 ### 3. check output in `res` directory
 

@@ -20,7 +20,7 @@ type xmlLine struct {
 
 type CollisionResolver func(file string, pos int, key, old, newer string) string
 
-func AppendToXML(data map[string]string, output string, resolver CollisionResolver) (keyCollisions, keyAppended int, err error) {
+func AppendToXML(data map[string]string, output string, resolver CollisionResolver, dry bool) (keyCollisions, keyAppended int, err error) {
 	var lines []string
 	lines, err = wkfs.ReadAllLines(output)
 	if err != nil {
@@ -159,7 +159,9 @@ func AppendToXML(data map[string]string, output string, resolver CollisionResolv
 	}
 	sb.WriteString("</resources>")
 
-	err = ioutil.WriteFile(output, []byte(sb.String()), 0644)
+	if !dry {
+		err = ioutil.WriteFile(output, []byte(sb.String()), 0644)
+	}
 
 	return
 }
