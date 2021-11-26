@@ -1,6 +1,6 @@
 # i18n
 
-中文文档请移步[这里](./README_CH.md)
+中文文档请移步[这里](./README_CN.md)
 
 A little tool that converts csv translations and append to android project.
 
