@@ -1,5 +1,7 @@
 # i18n
 
+[TOC]
+
 中文文档请移步[这里](./README_CN.md)
 
 A little tool that converts csv translations and append to android project.
@@ -100,3 +102,49 @@ or you can specify the key mapping in arguments via `--key` and `--alias`
 ### 3. check output in `res` directory
 
 after execution of `i18n`, check the result in `res` folder of your Android Project, and fix any potential bugs
+
+## Configuration
+
+`i18n` supports configuration file
+
+```shell
+$ i18n append --config path-to-your-config.yaml [...options]
+```
+
+configuration example:
+
+```yaml
+src: ./source_example.csv
+out: /path/to/your/anroid/project/res/
+key:
+  - English
+  - CN
+  - TW
+alias:
+  - en
+  - zh-rCN
+  - zh-rTW
+```
+
+you can set up multiple input source:
+
+```yaml
+src:
+  - ./source_example.csv
+  - /path/to/source.csv
+  - /path/to/sources/dir # also supports directory
+out: /path/to/your/android/project/res/
+key-mapping-config: /path/to/key-mapping-config.json
+```
+
+please note that you cannot config the flags below via a configuration file:
+
+* `--verbose`
+* `--interact`
+* `--nolint`
+* `--noescape`
+* `--prefer-new`
+* `--auto-placeholder`
+* `--dry`
+
+you still need to add them manually while executing the command

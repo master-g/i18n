@@ -1,0 +1,3 @@
+src: ./waka_lang_18-12-04.csv
+out: /Users/mg/Documents/workspace/MicoNativeLibrary/app/src/main
+key-mapping-config: ./keymapping.json

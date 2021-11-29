@@ -1,5 +1,7 @@
 # i18n
 
+[TOC]
+
 For english README, checkout [here](./README.md)
 
 此工具可以将处理后的多语言文件(目前仅支持 csv) 批量添加到 Android 工程路径下的 res/value(-lang)/strings.xml 中
@@ -104,3 +106,49 @@ For english README, checkout [here](./README.md)
 ### 3. 检查 `res` 目录下的输出
 
 命令执行无异常后, 请人工核对文案的添加结果并处理可能存在的错误
+
+## 配置文件
+
+`i18n` 支持配置文件
+
+```shell
+$ i18n append --config path-to-your-config.yaml [...options]
+```
+
+配置文件示例:
+
+```yaml
+src: ./source_example.csv
+out: /path/to/your/anroid/project/res/
+key:
+  - English
+  - CN
+  - TW
+alias:
+  - en
+  - zh-rCN
+  - zh-rTW
+```
+
+你可以指定多个输入源
+
+```yaml
+src:
+  - ./source_example.csv
+  - /path/to/source.csv
+  - /path/to/sources/dir # 也支持目录
+out: /path/to/your/android/project/res/
+key-mapping-config: /path/to/key-mapping-config.json
+```
+
+请注意，配置文件不支持以下 flags:
+
+* `--verbose`
+* `--interact`
+* `--nolint`
+* `--noescape`
+* `--prefer-new`
+* `--auto-placeholder`
+* `--dry`
+
+你需要在运行命令时指定这些 flag
