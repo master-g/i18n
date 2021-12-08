@@ -3,7 +3,7 @@
 TARGETS := i18n
 
 #VERSION := $(shell git describe --tags)
-VERSION := 0.1.1
+VERSION := 0.1.2
 BUILD := $(shell git rev-parse --short HEAD)
 DATE := $(shell date +%Y-%m-%dT%TZ%z)
 PROJECT_NAME := $(shell basename "$(PWD)")
@@ -82,9 +82,9 @@ release:
 	@echo "  >  Releasing..."
 	@GOBIN=$(GOBIN) \
 	gox -ldflags \
-	"-X $(GOMODULE)/pkg/version.Version=$(VERSION) \
-	-X $(GOMODULE)/pkg/version.BuildDate=$(DATE) \
-	-X $(GOMODULE)/pkg/version.CommitHash=$(BUILD)" \
+	"-X $(GO_MODULE)/internal/buildinfo.Version=$(VERSION) \
+	-X $(GO_MODULE)/internal/buildinfo.BuildDate=$(DATE) \
+	-X $(GO_MODULE)/internal/buildinfo.CommitHash=$(BUILD)" \
 	-osarch="darwin/amd64" \
 	-osarch="windows/amd64" \
 	-osarch="linux/amd64" \
