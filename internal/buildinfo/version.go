@@ -21,7 +21,6 @@
 package buildinfo
 
 import (
-	"fmt"
 	"runtime"
 	"strings"
 )
@@ -32,32 +31,13 @@ var CommitHash string
 // BuildDate set by linker with `-X` flag
 var BuildDate string
 
-// Version semantic
-type Version struct {
-	// Major version increment for backwards-incompatible changes.
-	Major int
-	// Minor version increment for new features.
-	Minor int
-	// Patch version increment for bug fixes.
-	Patch int
-}
-
-var currentVersion = Version{
-	Major: 0,
-	Minor: 1,
-	Patch: 0,
-}
-
-// String interface
-func (v Version) String() string {
-	return fmt.Sprintf("%v.%v.%v", v.Major, v.Minor, v.Patch)
-}
+// Version set by linker with `-X` flag
+var Version string
 
 // VersionString returns a string represents version and os info
 func VersionString() string {
 	var sb strings.Builder
-	sb.WriteString("v")
-	sb.WriteString(currentVersion.String())
+	sb.WriteString(Version)
 	if CommitHash != "" {
 		sb.WriteString("-")
 		sb.WriteString(CommitHash)
