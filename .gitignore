@@ -29,3 +29,5 @@ vendor
 bin/
 
 release/
+
+dist/
