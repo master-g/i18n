@@ -3,7 +3,7 @@
 TARGETS := i18n
 
 #VERSION := $(shell git describe --tags)
-VERSION := 0.1.0
+VERSION := 0.1.1
 BUILD := $(shell git rev-parse --short HEAD)
 DATE := $(shell date +%Y-%m-%dT%TZ%z)
 PROJECT_NAME := $(shell basename "$(PWD)")
