@@ -118,8 +118,7 @@ var appendCmd = &cobra.Command{
 			f = filepath.Clean(f)
 			if strings.HasSuffix(f, "res") &&
 				wkfs.IsDir(filepath.Join(f, "values")) &&
-				wkfs.IsFile(filepath.Join(f, "values", "strings.xml")) &&
-				wkfs.IsFile(filepath.Join(filepath.Dir(f), "AndroidManifest.xml")) {
+				wkfs.IsFile(filepath.Join(f, "values", "strings.xml")) {
 
 				filteredPath = append(filteredPath, f)
 			}
