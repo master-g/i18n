@@ -50,7 +50,10 @@ changelog:
       - "^docs:"
       - "^test:"
 brews:
-  - name: homebrew-tap
+  - name: i18n
+    repository:
+      owner: master-g
+      name: homebrew-tap
     directory: Formula
     homepage: "https://github.com/master-g/i18n"
     description: A tool to extract translations from CSV file and append to the strings resources in your Android project
