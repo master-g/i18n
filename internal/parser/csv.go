@@ -27,7 +27,10 @@ func LoadCSV(p string, collisionResolver CollisionResolver) (ret *model.SourceFi
 		return
 	}
 	defer func() {
-		err = csvFile.Close()
+		err2 := csvFile.Close()
+		if err == nil {
+			err = err2
+		}
 	}()
 	csvReader := csv.NewReader(bufio.NewReader(csvFile))
 
